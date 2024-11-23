@@ -1,5 +1,6 @@
 import xarray as xr
 import numpy as np
+from typing import List
 
 def trim_to_scan(da):
     """
@@ -132,3 +133,27 @@ def remove_first_last_in_chops(da):
 
     # Return the filtered DataArray
     return da.isel(time=to_keep)
+
+
+
+def divide_da_by_ABBA(da_abba: xr.DataArray) -> List[xr.DataArray]:
+    """
+    Divide da_abba into a list of DataArrays based on unique values in the `ABBA` coordinate.
+
+    Args:
+        da_abba: The input DataArray with `ABBA` as a coordinate.
+
+    Returns:
+        A list of DataArrays, one for each unique value in the `ABBA` coordinate.
+    """
+    if "ABBA" not in da_abba.coords:
+        raise ValueError("The input DataArray does not have an `ABBA` coordinate.")
+    
+    # Get the unique ABBA values
+    unique_abbas = da_abba["ABBA"].values
+    unique_groups = np.unique(unique_abbas)
+
+    # Split the DataArray by ABBA groups
+    da_list = [da_abba.sel(time=da_abba["ABBA"] == group) for group in unique_groups]
+
+    return da_list
