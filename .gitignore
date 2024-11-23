@@ -1477,3 +1477,11 @@
 .venv/lib/python3.11/site-packages/setuptools-65.5.0.dist-info/REQUESTED
 .venv/lib/python3.11/site-packages/setuptools-65.5.0.dist-info/top_level.txt
 .venv/lib/python3.11/site-packages/setuptools-65.5.0.dist-info/WHEEL
+dems_cooking.egg-info/dependency_links.txt
+dems_cooking.egg-info/PKG-INFO
+dems_cooking.egg-info/SOURCES.txt
+dems_cooking.egg-info/top_level.txt
+dems_cooking/__pycache__/slice.cpython-39.pyc
+dems_cooking/__pycache__/trim.cpython-39.pyc
+dems_cooking/__pycache__/plot.cpython-39.pyc
+dems_cooking/__pycache__/__init__.cpython-39.pyc

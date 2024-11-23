@@ -1,3 +1,8 @@
 [build-system]
 requires = ["setuptools", "setuptools-scm"]
-build-backend = "setuptools.build.meta"
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dems_cooking"
+version = "0.0.1"
+

@@ -3,5 +3,4 @@ __all__ = [
 ]
 __version__ = "2024.11.22"
 
-# submodules
-from . import plot
+from . import plot, slice
