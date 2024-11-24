@@ -157,3 +157,23 @@ def divide_da_by_ABBA(da_abba: xr.DataArray) -> List[xr.DataArray]:
     da_list = [da_abba.sel(time=da_abba["ABBA"] == group) for group in unique_groups]
 
     return da_list
+
+
+def remove_bad_channels(da, bad_indices):
+    """
+    Removes data from the DataArray where the 'chan' coordinate matches values in bad_indices.
+
+    Parameters:
+    da (xarray.DataArray): Input DataArray with a 'chan' coordinate.
+    bad_indices (numpy.ndarray): Array of integers representing the indices of bad channels.
+
+    Returns:
+    xarray.DataArray: The DataArray with bad channels removed.
+    """
+    # Ensure bad_indices is a numpy array
+    bad_indices = np.array(bad_indices)
+    
+    # Mask the DataArray to exclude bad channels
+    da_cleaned = da.where(~da['chan'].isin(bad_indices), drop=True)
+    
+    return da_cleaned
