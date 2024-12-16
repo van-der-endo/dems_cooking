@@ -32,6 +32,25 @@ def trim_to_scan(da):
     return da_trimmed
 
 
+def filter_on_off_states(da: xr.DataArray) -> xr.DataArray:
+    """
+    Filter the DataArray to keep only the 'ON' and 'OFF' states along the 'time' dimension.
+
+    Parameters:
+    - da (xr.DataArray): The input DataArray with a 'state' coordinate along 'time'.
+
+    Returns:
+    - xr.DataArray: A new DataArray containing only 'ON' and 'OFF' states.
+    """
+    # Select indices where 'state' is either 'ON' or 'OFF'
+    valid_states = da['state'].isin(['ON', 'OFF'])
+    
+    # Filter the DataArray
+    filtered_da = da.sel(time=valid_states)
+    
+    return filtered_da
+
+
 def trim_da_to_complete_ab_beam_pairs(da):
     """
     Trims the DataArray based on two conditions:
@@ -177,3 +196,117 @@ def remove_bad_channels(da, bad_indices):
     da_cleaned = da.where(~da['chan'].isin(bad_indices), drop=True)
     
     return da_cleaned
+
+
+
+def trim_by_nod(da: xr.DataArray) -> xr.DataArray:
+    """
+    Trims the DataArray along the 'time' index such that the 'nod' coordinate
+    starts at the first occurrence of 'A2' and ends at the last occurrence of 'A1'.
+
+    Parameters:
+    - da (xr.DataArray): The input DataArray with 'time' and 'nod' coordinates.
+
+    Returns:
+    - xr.DataArray: The trimmed DataArray.
+    """
+    # Get the indices of the first 'A2' and the last 'A1' in the 'nod' coordinate
+    first_a2_idx = (da.nod == 'A2').argmax().item()
+    last_a1_idx = len(da.nod) - 1 - (da.nod[::-1] == 'A1').argmax().item()
+    
+    # Trim the DataArray using these indices
+    return da.isel(time=slice(first_a2_idx, last_a1_idx + 1))
+
+
+
+def trim_dataarray_by_beam_and_nod(da):
+    """
+    Trim an Xarray DataArray based on 'beam' and 'nod' coordinates within each block.
+
+    The function performs the following steps:
+    1. Divides the DataArray into blocks based on consecutive values in the 'nod' coordinate.
+    2. Within each 'nod' block, identifies chunks of consecutive 'A' and 'B' values in the 'beam' coordinate.
+    3. Ensures each trimmed block starts with the second 'A' chunk and ends with the last 'B' chunk.
+    4. Removes the first (A, B) chunk set if the first 'A' chunk has 3 points or fewer.
+    5. Removes the last (A, B) chunk set if the last 'B' chunk has 3 points or fewer.
+    6. Combines the trimmed blocks into a single DataArray.
+
+    Parameters:
+    -----------
+    da : xarray.DataArray
+        The input DataArray with the following properties:
+        - Dimensions: 'time' and 'chan'.
+        - Coordinates:
+          - 'beam' : Contains 'A' or 'B' values along the 'time' dimension.
+          - 'nod'  : Contains nod status strings ('A2', 'B1', 'B2', 'A1') along the 'time' dimension.
+          - 'ABBA' : Contains cycle numbers along the 'time' dimension.
+
+    Returns:
+    --------
+    xarray.DataArray
+        A trimmed DataArray where each block starts with 'A' and ends with 'B', with insufficient edge chunks removed.
+    """
+
+    def find_chunks(values):
+        """Identify chunks of consecutive identical values and their start and end indices."""
+        chunks = []
+        start = 0
+        for i in range(1, len(values)):
+            if values[i] != values[start]:
+                chunks.append((values[start], start, i))
+                start = i
+        # Add the last chunk
+        chunks.append((values[start], start, len(values)))
+        return chunks
+
+    # Initialize an empty list to store trimmed slices
+    trimmed_slices = []
+
+    # Get unique nod values to identify blocks
+    nod_values = da.nod.values
+    nod_chunks = find_chunks(nod_values)
+
+    for _, start, end in nod_chunks:
+        # Select the current nod block
+        block = da.isel(time=slice(start, end))
+        beam_values = block.beam.values
+
+        # Find the chunks of consecutive 'beam' values within this block
+        beam_chunks = find_chunks(beam_values)
+
+        # Ensure there are at least two 'A' chunks and at least one 'B' chunk
+        a_chunks = [(value, start, end) for value, start, end in beam_chunks if value == 'A']
+        b_chunks = [(value, start, end) for value, start, end in beam_chunks if value == 'B']
+
+        if len(a_chunks) >= 2 and len(b_chunks) >= 1:
+            # Check the first A chunk and the last B chunk
+            first_a_chunk = a_chunks[0]
+            last_b_chunk = b_chunks[-1]
+
+            # Check if the first A chunk has 3 points or fewer
+            if (first_a_chunk[2] - first_a_chunk[1]) <= 3:
+                # Remove the first (A, B) chunk set if possible
+                if len(a_chunks) >= 3 and len(b_chunks) >= 2:
+                    a_chunks.pop(0)
+                    b_chunks.pop(0)
+
+            # Check if the last B chunk has 3 points or fewer
+            if (last_b_chunk[2] - last_b_chunk[1]) <= 3:
+                # Remove the last (A, B) chunk set if possible
+                if len(a_chunks) >= 3 and len(b_chunks) >= 2:
+                    a_chunks.pop(-1)
+                    b_chunks.pop(-1)
+
+            # Identify indices for the second 'A' chunk and the last 'B' chunk
+            second_a_index = a_chunks[1][1]
+            last_b_index = b_chunks[-1][2]
+
+            # Trim the block to the desired range
+            trimmed_block = block.isel(time=slice(second_a_index, last_b_index))
+            trimmed_slices.append(trimmed_block)
+
+    # Combine all trimmed slices into a single DataArray
+    if trimmed_slices:
+        return xr.concat(trimmed_slices, dim='time')
+    else:
+        return xr.DataArray()

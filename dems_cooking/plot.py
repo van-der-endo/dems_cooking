@@ -33,7 +33,9 @@ def plot_beam_state(
         "GRAD": "blue",
         "SCAN": "green",
         "ACC": "purple",
-        "TRAN": "darkgoldenrod"
+        "TRAN": "darkgoldenrod",
+        "ON": "lightblue",
+        "OFF": "lightpink"
     }
     colors = np.vectorize(state_colors.get)(state)
 
